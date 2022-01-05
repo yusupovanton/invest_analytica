@@ -18,15 +18,30 @@ app = dash.Dash(__name__)
 # print('enter a ticker and metrics')
 # usrinput = list(map(str, input().split()))
 
-company = 'AAPL'
-ticker = 'FXCN'
+company = 'gazprom'
+ticker = 'GAZP'
 fromdate = "2022-01-01"
 todate = "2022-01-01"
 
 
 def symbol_lookup(user_input):
-    output = finnhub_client.symbol_lookup(user_input)
-    return output
+
+    df = pd.DataFrame(columns=['description', 'symbol'])
+
+    stocks = finnhub_client.symbol_lookup(user_input)['result']
+
+    if stocks:
+        col = 0
+        for stock in stocks:
+            description = stock['description']
+
+            symbol = stock['symbol'].split('.')[0]
+
+
+            df.loc[col] = [description, symbol]
+            col += 1
+
+        return df
 
 
 def get_available_stocks(SE):
@@ -39,7 +54,7 @@ def get_available_stocks(SE):
 
         description = stock['description']
         display_symbol = stock['displaySymbol']
-        symbol = stock['symbol'].split('.')[0]
+        symbol = stock['symbol']
         type = stock['type']
 
         df.loc[col] = [description, display_symbol, symbol, type]
@@ -71,13 +86,13 @@ def get_basic_financials(ticker):
         return False
 
 
-
 def main(user_input=None):
     pass
     # get_available_stocks(EXCHANGE)
-    # print(symbol_lookup(company))
-    print(get_basic_financials(ticker))
+    print(symbol_lookup('FXCN'))
+    # print(get_basic_financials('GAZP.ME'))
 
 
 if __name__ == '__main__':
-    main(company)
+    main()
+

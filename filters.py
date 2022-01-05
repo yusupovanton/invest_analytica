@@ -78,9 +78,9 @@ class FoundOnStockFilter(BoundFilter):
     async def check(self, message: types.Message):
         data = message.text
         if data:
-            output = symbol_lookup(data)
+            output = finnhub_client.symbol_lookup(data)
             records_found = output['count']
-            if records_found < 1:
+            if not output['result']:
                 return {'count': records_found}
             return False
         return False

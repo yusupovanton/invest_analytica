@@ -23,11 +23,22 @@ async def handle_found_on_stocks(message: types.Message, count: int):
 
 @dp.message_handler()
 async def basic_metrics_search(message: types.Message):
+
     file_name = get_basic_financials(message.text)
     if file_name:
         await message.answer(f"Хорошо. Сейчас предоставим данные по компании ({message.text}...)")
         with open(file_name, 'rb') as file:
             await message.answer_document(file)
     else:
-        await message.answer(f"Мы не нашли данных по компании ({message.text}). Приносим извинения. (Возможно, ETF?)")
+        file_name = get_basic_financials(f'{message.text}.ME')
+        if file_name:
+            await message.answer(f"Хорошо. Сейчас предоставим данные по компании ({message.text}...)")
+            with open(file_name, 'rb') as file:
+                await message.answer_document(file)
+        else:
+            await message.answer(f"Мы не нашли данных по компании ({message.text}). Приносим извинения.")
+            df = symbol_lookup(message.text)
+            await message.answer(f"Вот результаты поиска по названию:")
+            await message.answer(f"{df}")
+
 
