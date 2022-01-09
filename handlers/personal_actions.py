@@ -60,7 +60,7 @@ async def cancel_handler(message: types.Message, state: FSMContext):
     # Cancel state and inform user about it
     await state.finish()
     # And remove keyboard (just in case)
-    await message.reply('Пойду отдохну! Для повторного запуска бота отправьте команду "/start"',
+    await message.reply('Пойду отдохну! Для повторного запуска бота отправьте команду \n/start',
                         reply_markup=types.ReplyKeyboardRemove(),
                         reply=False)
 
