@@ -41,9 +41,7 @@ async def cmd_start(message: types.Message):
 
     await Form.choice_command.set()
 
-    await message.reply("Привет! Какую информацию ты хотел бы получить?",
-                        reply_markup=keyboard_markup,
-                        reply=False)
+    await message.reply("Привет! Какую информацию ты хотел бы получить?", reply_markup=keyboard_markup)
 
 
 @dp.message_handler(state='*', commands='stop')
@@ -60,9 +58,7 @@ async def cancel_handler(message: types.Message, state: FSMContext):
     # Cancel state and inform user about it
     await state.finish()
     # And remove keyboard (just in case)
-    await message.reply('Пойду отдохну! Для повторного запуска бота отправьте команду "/start"',
-                        reply_markup=types.ReplyKeyboardRemove(),
-                        reply=False)
+    await message.reply('Пойду отдохну!', reply_markup=types.ReplyKeyboardRemove())
 
 
 @dp.message_handler(state='*', commands='menu')
@@ -84,12 +80,10 @@ async def back_to_menu_handler(message: types.Message, state: FSMContext):
 
     await Form.choice_command.set()
 
-    await message.reply("Привет! Какую информацию ты хотел бы получить?",
-                        reply_markup=keyboard_markup,
-                        reply=False)
+    await message.reply("Привет! Какую информацию ты хотел бы получить?", reply_markup=keyboard_markup)
 
 
-@dp.message_handler(Text(equals='Получить список компаний', ignore_case=True), state=Form.choice_command)
+@dp.message_handler(Text(equals='Получить список компаний', ignore_case=True),state=Form.choice_command)
 async def process_name(message: types.Message, state: FSMContext):
     """
     Process chosen command
@@ -100,9 +94,8 @@ async def process_name(message: types.Message, state: FSMContext):
     btns_text = ('Вернуться в меню', 'Стоп', 'Я не знаю названия биржи')
     keyboard_markup.row(*(types.KeyboardButton(text) for text in btns_text))
 
-    await message.reply("Введите название биржи, например, МЕ",
-                        reply_markup=keyboard_markup,
-                        reply=False)
+    await message.reply("Введите название биржи, например, МЕ", reply_markup=keyboard_markup)
+    print(get_basic_financials(message.text)[0])
 
 
 @dp.message_handler(Text(equals='Я не знаю названия биржи', ignore_case=True), state=Form.all_companies)
@@ -114,15 +107,11 @@ async def process_name(message: types.Message, state: FSMContext):
     keyboard_markup = types.ReplyKeyboardMarkup(row_width=3)
     btns_text = ('Вернуться в меню', 'Стоп')
     keyboard_markup.row(*(types.KeyboardButton(text) for text in btns_text))
-    await message.reply("Вот список доступных бирж и соотвествующих кодов \n<a href='https://docs.google.com/"
-                        "spreadsheets/d/1I3pBxjfXB056-g_JYf_6o3Rns3BV2kMGG1nCatb91ls/"
+    await message.reply("<a href='https://docs.google.com/spreadsheets/d/1I3pBxjfXB056-g_JYf_6o3Rns3BV2kMGG1nCatb91ls/"
                         "edit#gid=0'>A list of supported exchange codes</a>",
                         reply_markup=keyboard_markup,
-                        parse_mode='html',
-                        reply=False)
-    await message.reply("Введите название биржи, например, МЕ",
-                        reply_markup=keyboard_markup,
-                        reply=False)
+                        parse_mode='html')
+    await message.reply("Введите название биржи, например, МЕ", reply_markup=keyboard_markup)
     print(get_basic_financials(message.text)[0])
 
 
@@ -138,18 +127,17 @@ async def process_name(message: types.Message, state: FSMContext):
     file_name = get_available_stocks(message.text)
     if file_name:
         with open(file_name, 'rb') as document:
-            await message.reply_document(document,
-                                         reply_markup=keyboard_markup,
-                                         reply=False)
+            await message.reply_document(document, reply_markup=keyboard_markup)
     else:
-        await message.reply("Такой биржи не найдено",
-                            reply_markup=keyboard_markup,
-                            reply=False)
+        await message.reply("Такой биржи не найдено", reply_markup=keyboard_markup)
 
 
 @dp.message_handler(Text(equals='Получить базовые финансовые показатели компании', ignore_case=True),
                     state=Form.choice_command)
 async def process_name(message: types.Message, state: FSMContext):
+    """
+    Process chosen command
+    """
 
     await Form.get_financials.set()
 
@@ -157,9 +145,7 @@ async def process_name(message: types.Message, state: FSMContext):
     btns_text = ('Вернуться в меню', 'Стоп')
     keyboard_markup.row(*(types.KeyboardButton(text) for text in btns_text))
 
-    await message.reply("Введите тикер",
-                        reply_markup=keyboard_markup,
-                        reply=False)
+    await message.reply("Введите тикер или название компании", reply_markup=keyboard_markup)
     print(get_basic_financials(message.text)[0])
 
 
@@ -173,10 +159,8 @@ async def process_ticker_invalid(message: types.Message):
     btns_text = ('Вернуться в меню', 'Стоп')
     keyboard_markup.row(*(types.KeyboardButton(text) for text in btns_text))
 
-    return await message.reply("Тикер или компания не в нашем списке (пока что) :(\nНе забывайте указывать биржу (.ME)"
-                               "?..",
-                               reply_markup=keyboard_markup,
-                               reply=False)
+    return await message.reply("Тикер или компания не в нашем списке (пока что) :(\nВведите другой?..",
+                               reply_markup=keyboard_markup)
 
 
 @dp.message_handler(lambda message: get_basic_financials(message.text)[0], state=Form.get_financials)
@@ -193,3 +177,5 @@ async def process_ticker(message: types.Message, state: FSMContext):
                             reply_markup=keyboard_markup,
                             reply=False)
 
+if __name__ == '__main__':
+    executor.start_polling(dp, skip_updates=True)
