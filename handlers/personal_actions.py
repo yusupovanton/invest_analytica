@@ -5,8 +5,6 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
-from aiogram.types import ParseMode
-from aiogram.utils import executor
 from main import *
 
 from config import API_TOKEN
@@ -36,7 +34,8 @@ async def cmd_start(message: types.Message):
     # Set state
 
     keyboard_markup = types.ReplyKeyboardMarkup(row_width=3)
-    btns_text = ('Получить базовые финансовые показатели компании', 'Получить список компаний')
+    btns_text = ('Получить базовые финансовые показатели компании', 'Получить список компаний',
+                 'Найти тикер по названию компании')
     keyboard_markup.row(*(types.KeyboardButton(text) for text in btns_text))
 
     await Form.choice_command.set()
@@ -79,7 +78,8 @@ async def back_to_menu_handler(message: types.Message, state: FSMContext):
     # Cancel state and inform user about it
 
     keyboard_markup = types.ReplyKeyboardMarkup(row_width=3)
-    btns_text = ('Получить базовые финансовые показатели компании', 'Получить список компаний')
+    btns_text = ('Получить базовые финансовые показатели компании', 'Получить список компаний',
+                 'Найти тикер по названию компании')
     keyboard_markup.row(*(types.KeyboardButton(text) for text in btns_text))
 
     await Form.choice_command.set()
@@ -149,7 +149,7 @@ async def process_name(message: types.Message, state: FSMContext):
 
 @dp.message_handler(Text(equals='Получить базовые финансовые показатели компании', ignore_case=True),
                     state=Form.choice_command)
-async def process_name(message: types.Message, state: FSMContext):
+async def process_name(message: types.Message):
 
     await Form.get_financials.set()
 
@@ -172,11 +172,20 @@ async def process_ticker_invalid(message: types.Message):
     keyboard_markup = types.ReplyKeyboardMarkup(row_width=3)
     btns_text = ('Вернуться в меню', 'Стоп')
     keyboard_markup.row(*(types.KeyboardButton(text) for text in btns_text))
+    add_se_name = str(message.text) + '.ME'
 
-    return await message.reply("Тикер или компания не в нашем списке (пока что) :(\nНе забывайте указывать биржу (.ME)"
-                               "?..",
-                               reply_markup=keyboard_markup,
-                               reply=False)
+    file_name = get_basic_financials(add_se_name)
+    if file_name:
+        with open(file_name, 'rb') as document:
+            await message.reply_document(document)
+            await message.reply("Вот ваш файл! Введите еще один тикер?..",
+                                reply_markup=keyboard_markup,
+                                reply=False)
+    else:
+        return await message.reply("Тикер или компания не в нашем списке (пока что) :(\nНе забыли указывать биржу "
+                                   "(.ME)?..",
+                                   reply_markup=keyboard_markup,
+                                   reply=False)
 
 
 @dp.message_handler(lambda message: get_basic_financials(message.text)[0], state=Form.get_financials)
@@ -193,3 +202,37 @@ async def process_ticker(message: types.Message, state: FSMContext):
                             reply_markup=keyboard_markup,
                             reply=False)
 
+
+@dp.message_handler(Text(equals='Найти тикер по названию компании', ignore_case=True),
+                    state=Form.choice_command)
+async def lookup_ticker(message: types.Message, state: FSMContext):
+
+    keyboard_markup = types.ReplyKeyboardMarkup(row_width=3)
+    btns_text = ('Вернуться в меню', 'Стоп')
+    keyboard_markup.row(*(types.KeyboardButton(text) for text in btns_text))
+
+    await Form.ticker_lookup.set()
+
+    await message.reply('Введите название компании, например, "apple"',
+                        reply_markup=keyboard_markup,
+                        reply=False)
+
+
+@dp.message_handler(state=Form.ticker_lookup)
+async def lookup_ticker_name(message: types.Message, state: FSMContext):
+    keyboard_markup = types.ReplyKeyboardMarkup(row_width=3)
+    btns_text = ('Вернуться в меню', 'Стоп')
+    keyboard_markup.row(*(types.KeyboardButton(text) for text in btns_text))
+
+    df_file_name = symbol_lookup(message.text)
+    if not df_file_name:
+        await message.reply('Нет такой компании (по крайней мере мы так думаем)... Попробуйте еще раз '
+                            'или посмотрите в общем реестре компаний',
+                            reply_markup=keyboard_markup,
+                            reply=False)
+    else:
+        with open(df_file_name[1], 'rb') as document:
+            await message.reply_document(document)
+            await message.reply("Вот список ! Введите еще один тикер?..",
+                                reply_markup=keyboard_markup,
+                                reply=False)

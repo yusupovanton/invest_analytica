@@ -34,14 +34,15 @@ def symbol_lookup(user_input):
         col = 0
         for stock in stocks:
             description = stock['description']
-
-            symbol = stock['symbol'].split('.')[0]
-
+            symbol = stock['symbol']
 
             df.loc[col] = [description, symbol]
             col += 1
-
-        return df
+        df_file_name = f"companiesAvailable/companyList.html"
+        df.to_html(df_file_name)
+        return True, df_file_name
+    else:
+        return False
 
 
 def get_available_stocks(se='ME'):
@@ -67,8 +68,6 @@ def get_available_stocks(se='ME'):
 
     else:
         return False
-
-
 
 
 def get_general_news(file_name='last_id.txt'):
@@ -143,7 +142,7 @@ def get_basic_financials(ticker):
 def main(user_input=None):
     pass
     # get_available_stocks('BoolHSIT')
-    # print(symbol_lookup('FXCN'))
+    print(symbol_lookup('FXCN'))
     # if not get_basic_financials(ticker)[0]:
     #     print('No')
     # if get_basic_financials(ticker)[0]:
