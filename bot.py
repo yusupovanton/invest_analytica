@@ -4,5 +4,4 @@ from dispatcher import dp
 from handlers.personal_actions import *
 
 if __name__ == '__main__':
-    executor.start(dp, broadcaster())
-    executor.start_polling(dp, skip_updates=True)
+    executor.start_polling(dp, skip_updates=True, on_startup=on_startup)

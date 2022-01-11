@@ -2,7 +2,7 @@ import finnhub
 import dash
 import os
 import pandas as pd
-
+import requests
 
 EXCHANGE = 'ME'
 if not os.path.exists("images"):
@@ -14,6 +14,8 @@ finnhub_client = finnhub.Client(API_KEY)
 pairs = {}
 dict = {}
 app = dash.Dash(__name__)
+
+
 
 # print('enter a ticker and metrics')
 # usrinput = list(map(str, input().split()))
@@ -108,23 +110,25 @@ def get_general_news(file_name='last_id.txt'):
 def get_company_news(ticker, fromdate, todate):
 
     news = finnhub_client.company_news(ticker, _from=fromdate, to=todate)
-    if news:
-        df = pd.DataFrame(columns=['headline', 'image', 'summary', 'url'])
-        col = 0
 
-        for item in news:
-            headline = item['headline']
-            image = item['image']
-            summary = item['summary']
-            url = item['url']
-
-            df.loc[col] = [headline, image, summary, url]
-            col += 1
-
-            df_file_name = f"companyNews/{ticker}news.html"
-            df.to_html(df_file_name)
-
-            return df
+    return news
+    # if news:
+    #     df = pd.DataFrame(columns=['headline', 'image', 'summary', 'url'])
+    #     col = 0
+    #
+    #     for item in news:
+    #         headline = item['headline']
+    #         image = item['image']
+    #         summary = item['summary']
+    #         url = item['url']
+    #
+    #         df.loc[col] = [headline, image, summary, url]
+    #         col += 1
+    #
+    #         df_file_name = f"companyNews/{ticker}news.html"
+    #         df.to_html(df_file_name)
+    #
+    #         return df
 
 
 def get_basic_financials(ticker):
@@ -139,10 +143,53 @@ def get_basic_financials(ticker):
         return False
 
 
+def indices_constituents(index='^GSPC'):
+    return finnhub_client.indices_const(symbol=index)['constituents']
+
+
+def set_webhook(ticker):
+    r = requests.post('https://finnhub.io/api/v1/webhook/add?token=c62iqiaad3iad17mv92g',
+                      json={'event': 'earnings', 'symbol': ticker})
+    res = r.json()
+    print(res)
+
+
+def get_webhooks():
+    # List webhook
+    r = requests.get('https://finnhub.io/api/v1/webhook/list?token=c62iqiaad3iad17mv92g')
+    res = r.json()
+    return res
+
+
+def delete_webhhook(webhook_id):
+    if webhook_id.lower() == 'all':
+        r = requests.get('https://finnhub.io/api/v1/webhook/list?token=c62iqiaad3iad17mv92g')
+        res = r.json()
+        for item in res:
+            webhook_id = item['id']
+            r = requests.post('https://finnhub.io/api/v1/webhook/delete?token=c62iqiaad3iad17mv92g',
+                              json={'id': webhook_id})
+            res = r.json()
+            print(res)
+    else:
+        r = requests.post('https://finnhub.io/api/v1/webhook/delete?token=c62iqiaad3iad17mv92g',
+                          json={'id': webhook_id})
+        res = r.json()
+        print(res)
+
+
 def main(user_input=None):
     pass
+
+    news = get_company_news(ticker='GAZP.ME', fromdate="2022-01-10", todate="2022-01-11")
+    news2 = get_company_news(ticker='SBER.ME', fromdate="2022-01-10", todate="2022-01-11")
+    news3 = get_company_news(ticker='AAPL', fromdate="2022-01-10", todate="2022-01-11")
+    newstot = news + news2 + news3[0:5]
+    print(len(newstot))
+    print(get_webhooks())
+
     # get_available_stocks('BoolHSIT')
-    print(symbol_lookup('FXCN'))
+    # print(symbol_lookup('FXCN'))
     # if not get_basic_financials(ticker)[0]:
     #     print('No')
     # if get_basic_financials(ticker)[0]:

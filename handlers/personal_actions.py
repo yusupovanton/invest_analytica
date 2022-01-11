@@ -1,7 +1,8 @@
-import asyncio
+import ast
 import logging
 from datetime import datetime
-
+import asyncio
+import aioschedule as schedule
 import aiogram.utils.markdown as md
 from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
@@ -9,16 +10,17 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from main import *
+from dispatcher import dp
+from config import *
+from itertools import chain
 
-from config import API_TOKEN
 logging.basicConfig(level=logging.INFO)
 
 
-bot = Bot(token=API_TOKEN)
+bot = Bot(token=API_TOKEN, parse_mode='HTML')
 
 # For example use simple MemoryStorage for Dispatcher.
 storage = MemoryStorage()
-dp = Dispatcher(bot, storage=storage)
 
 
 # States
@@ -52,6 +54,12 @@ async def cmd_start(message: types.Message):
     await message.reply("Привет! Какую информацию ты хотел бы получить?",
                         reply_markup=keyboard_markup_menu_options,
                         reply=False)
+
+
+@dp.message_handler(is_scheduler=True, commands='sendRequest')
+async def cmd_start(message: types.Message):
+    print('scheduler task detected')
+    await bot.send_message(chat_id='1750352084', text="Srabotalo")
 
 
 @dp.message_handler(state='*', commands='stop')
@@ -233,3 +241,50 @@ async def process_options(message: types.Message, state: FSMContext):
 
     with open(f'userOptions/user_options{user_id}.txt', 'w') as options_file:
         options_file.write(f'{options_set}\n')
+
+
+async def news_send():
+
+    with open('user_list.txt', 'r') as file:
+        user_list = file.readlines()
+
+    for user in user_list:
+        with open(f"userOptions/user_options{user.rstrip()}.txt", 'r') as file:
+            file.seek(0)
+            register_set = ast.literal_eval(file.read())
+
+        for item in register_set:
+            total_list_to_send = []
+            news = get_company_news(ticker=item, fromdate="2022-01-10", todate="2022-01-11")
+
+            if news:
+                if len(news) > 5:
+                    news = news[0:5]
+                for i in news:
+                    headline = str(i['headline'])
+                    url = str(i['url'])
+                    text = f'<a href="{url}">{headline.split(" ", 1)[0]}</a> {headline.split(" ", 1)[1]}'
+                    total_list_to_send.append(text)
+
+                print(total_list_to_send)
+                print(len(total_list_to_send))
+
+                for j in total_list_to_send:
+
+                    print(j)
+                    await bot.send_message(chat_id=user, text=j, parse_mode='HTML', disable_web_page_preview=True)
+
+            else:
+                print('No news!')
+
+
+async def scheduler():
+    schedule.every().day.at('19:13').do(news_send)
+
+    while True:
+        await schedule.run_pending()
+        await asyncio.sleep(20)
+
+
+async def on_startup(_):
+    asyncio.create_task(scheduler())

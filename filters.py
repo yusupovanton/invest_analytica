@@ -4,6 +4,7 @@ import config
 from typing import List, Union
 from main import *
 
+
 class IsOwnerFilter(BoundFilter):
     """
     Custom filter "is_owner".
@@ -84,3 +85,15 @@ class FoundOnStockFilter(BoundFilter):
                 return {'count': records_found}
             return False
         return False
+
+
+class IsSentByScheduler(BoundFilter):
+
+    key = "is_scheduler"
+
+    def __init__(self, is_scheduler):
+        self.scheduler = is_scheduler
+
+    async def check(self, message: types.Message):
+        return message.from_user.id == config.SCHEDULER_BOT
+
