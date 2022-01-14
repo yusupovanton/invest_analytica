@@ -1,10 +1,6 @@
 import ast
 import logging
-from datetime import datetime
-import asyncio
-import aioschedule as schedule
-import aiogram.utils.markdown as md
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
@@ -12,7 +8,8 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from main import *
 from dispatcher import dp
 from config import *
-from itertools import chain
+from datetime import datetime
+
 
 logging.basicConfig(level=logging.INFO)
 
@@ -34,15 +31,15 @@ class Form(StatesGroup):
 
 buttons_text_menu_options = ('Получить базовые финансовые показатели компании', 'Получить список компаний',
                              'Найти тикер по названию компании', 'Задать опции')
-keyboard_markup_menu_options = types.ReplyKeyboardMarkup(row_width=3)
+keyboard_markup_menu_options = types.ReplyKeyboardMarkup(row_width=3, resize_keyboard=True)
 keyboard_markup_menu_options.row(*(types.KeyboardButton(text) for text in buttons_text_menu_options))
 
 buttons_text_go_back = ('Вернуться в меню', 'Стоп')
-keyboard_markup_go_back = types.ReplyKeyboardMarkup(row_width=2)
+keyboard_markup_go_back = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
 keyboard_markup_go_back.row(*(types.KeyboardButton(text) for text in buttons_text_go_back))
 
 buttons_text_go_back2 = ('Вернуться в меню', 'Стоп', 'Я не знаю названия биржи')
-keyboard_markup_go_back2 = types.ReplyKeyboardMarkup(row_width=3)
+keyboard_markup_go_back2 = types.ReplyKeyboardMarkup(row_width=3, resize_keyboard=True)
 keyboard_markup_go_back2.row(*(types.KeyboardButton(text) for text in buttons_text_go_back2))
 
 
@@ -50,16 +47,10 @@ keyboard_markup_go_back2.row(*(types.KeyboardButton(text) for text in buttons_te
 async def cmd_start(message: types.Message):
 
     await Form.choice_command.set()
-
     await message.reply("Привет! Какую информацию ты хотел бы получить?",
                         reply_markup=keyboard_markup_menu_options,
                         reply=False)
-
-
-@dp.message_handler(is_scheduler=True, commands='sendRequest')
-async def cmd_start(message: types.Message):
-    print('scheduler task detected')
-    await bot.send_message(chat_id='1750352084', text="Srabotalo")
+    print('pussy')
 
 
 @dp.message_handler(state='*', commands='stop')
@@ -71,11 +62,8 @@ async def cancel_handler(message: types.Message, state: FSMContext):
     current_state = await state.get_state()
     if current_state is None:
         return
-
     logging.info('Cancelling state %r', current_state)
-    # Cancel state and inform user about it
     await state.finish()
-
     await message.reply('Пойду отдохну! Для повторного запуска бота отправьте команду \n/start',
                         reply_markup=types.ReplyKeyboardRemove(),
                         reply=False)
@@ -212,79 +200,87 @@ async def lookup_ticker_name(message: types.Message, state: FSMContext):
                                 reply=False)
 
 
-@dp.message_handler(Text(equals='Задать опции', ignore_case=True),
-                    state=Form.choice_command)
+@dp.message_handler(Text(equals='Задать опции', ignore_case=True), state=Form.choice_command)
 async def lookup_ticker(message: types.Message, state: FSMContext):
 
     await Form.set_options.set()
 
     await message.reply('Введите список тикеров компаний на которые вы хотели бы подписаться. Ввод тикеров следует '
-                        'осуществить через пробел. Пример:  AAPL GAZP.ME SBER.ME\nПравильный формат тикеров'
-                        'можно узнать запросив список тикеров или выполнив поиск по названию компаний через бота.',
-                        reply_markup=keyboard_markup_go_back,
+                        'осуществить через пробел. Пример:  AAPL GAZP.ME SBER.ME\nПравильные названия тикеров'
+                        'можно узнать, запросив список тикеров или выполнив поиск по названию компаний через бота.',
+                        reply_markup=keyboard_markup_go_back.add('Задать время', 'Задать список компаний'),
                         reply=False)
 
 
-@dp.message_handler(state=Form.set_options)
+@dp.message_handler(Text(equals='Задать список компаний', ignore_case=True), state=Form.set_options)
+@dp.message_handler(commands='setCompanies')
 async def process_options(message: types.Message, state: FSMContext):
-    options_set = set()
+    tickers_set = set()
     user_id = message.chat.id
-    tickers_set = message.text.split(' ')
-    for item in tickers_set:
+    tickers_entered = message.text.split(' ')
+    for item in tickers_entered:
         try:
-            options_set.add(item)
+            tickers_set.add(item)
         except Exception as ex:
             print(ex)
 
-    with open(f'user_list.txt', 'w+') as user_list_file:
-        user_list_file.write(f'{user_id}\n')
+    with open(f'user_list.txt', 'rw+') as user_list_file:
+        if user_id not in user_list_file.readlines():
+            user_list_file.write(f'{user_id}\n')
+        else:
+            print(f'The user {user_id} is already in the user_list_file!')
 
-    with open(f'userOptions/user_options{user_id}.txt', 'w') as options_file:
-        options_file.write(f'{options_set}\n')
+    with open(f'userOptions/{user_id}/user_tickers.txt', 'w') as options_file:
+        options_file.write(f'{tickers_set}\n')
 
-
-async def news_send():
-
-    with open('user_list.txt', 'r') as file:
-        user_list = file.readlines()
-
-    for user in user_list:
-        with open(f"userOptions/user_options{user.rstrip()}.txt", 'r') as file:
-            file.seek(0)
-            register_set = ast.literal_eval(file.read())
-
-        for item in register_set:
-            total_list_to_send = []
-            news = get_company_news(ticker=item, fromdate="2022-01-10", todate="2022-01-11")
-
-            if news:
-                if len(news) > 5:
-                    news = news[0:5]
-                for i in news:
-                    headline = str(i['headline'])
-                    url = str(i['url'])
-                    text = f'<a href="{url}">{headline.split(" ", 1)[0]}</a> {headline.split(" ", 1)[1]}'
-                    total_list_to_send.append(text)
-
-                print(total_list_to_send)
-                print(len(total_list_to_send))
-
-                for j in total_list_to_send:
-
-                    print(j)
-                    await bot.send_message(chat_id=user, text=j, parse_mode='HTML', disable_web_page_preview=True)
-
-            else:
-                print('No news!')
+    await message.reply('Хорошо. Теперь можете изменить или добавить время, в которое вы бы хотели получать ваши '
+                        'новости.',
+                        reply_markup=keyboard_markup_go_back.add('Задать время'),
+                        reply=False)
 
 
-async def scheduler():
-    schedule.every().day.at('19:13').do(news_send)
+@dp.message_handler(Text(equals='Задать время', ignore_case=True), state=Form.set_options)
+@dp.message_handler(commands='setTime')
+async def process_options(message: types.Message, state: FSMContext):
+    user_id = message.chat.id
+    time = message.text.strip()
 
-    while True:
-        await schedule.run_pending()
-        await asyncio.sleep(20)
+    with open(f'user_list.txt', 'rw+') as user_list_file:
+        if user_id not in user_list_file.readlines():
+            user_list_file.write(f'{user_id}\n')
+        else:
+            print(f'The user {user_id} is already in the user_list_file!')
+
+    with open(f'userOptions/{user_id}/user_time.txt', 'w') as options_file:
+        options_file.write(f'{time}\n')
+
+    await message.reply('Хорошо. Теперь можете изменить или добавить компании, по которым вы бы хотели получать ваши '
+                        'новости.',
+                        reply_markup=keyboard_markup_go_back.add('Задать список компаний'),
+                        reply=False)
 
 
-async def on_startup(_):
-    asyncio.create_task(scheduler())
+async def news_send(user_id):
+
+    with open(f"userOptions/user_options{user_id.rstrip()}.txt", 'r') as file:
+        file.seek(0)
+        ticker_set = ast.literal_eval(file.read())
+
+    for item in ticker_set:
+        total_list_to_send = []
+        today = datetime.today().strftime('%Y-%m-%d')
+        news = get_company_news(ticker=item, fromdate=today, todate=today)
+
+        if news:
+            if len(news) > 5:
+                news = news[0:5]
+            for i in news:
+                headline = str(i['headline'])
+                url = str(i['url'])
+                text = f'<a href="{url}">{headline.split(" ", 1)[0]}</a> {headline.split(" ", 1)[1]}'
+                total_list_to_send.append(text)
+            for j in total_list_to_send:
+                await bot.send_message(chat_id=user_id, text=j, parse_mode='HTML', disable_web_page_preview=True)
+        else:
+            print('No news!')
+
